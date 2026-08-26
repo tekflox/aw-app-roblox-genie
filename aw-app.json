@@ -1,0 +1,136 @@
+{
+  "manifest_version": 1,
+  "id": "roblox-genie",
+  "name": "Roblox Genie",
+  "version": "0.1.0",
+  "description": "The lamp-genie NPC any player can chat with in the aw-roblox game: grants small wishes live (spawn objects, move/summon NPCs) and files a Kanban card for bigger ones. Split out of the Roblox app as its own package so the chat-injectable surface a random player talks to never shares a permission boundary with Frederico's full pilot tools (scale_object, kick_players, world lighting).",
+  "icon": "sparkles",
+  "tier": "inprocess",
+  "requires_ui_refresh": false,
+  "category": "Integrations",
+  "publisher": "TekFlox",
+  "resource_estimate": {
+    "cpu": "low",
+    "memory": "low",
+    "disk": "low"
+  },
+  "runtime": {
+    "python": ">=3.11",
+    "entrypoint": "roblox_genie_app.plugin:RobloxGenieAppPlugin",
+    "pip_requires": []
+  },
+  "permissions": [
+    "routes:register",
+    "secrets:own",
+    "net:outbound",
+    "agents:contribute"
+  ],
+  "contributes": {
+    "routes": [
+      {
+        "prefix": "/api/apps/roblox-genie"
+      }
+    ],
+    "mcp": {
+      "reload_on_save": false,
+      "provides": [
+        "create_genie_card",
+        "list_genie_cards",
+        "npc_list",
+        "list_objects",
+        "npc_view",
+        "npc_move_to",
+        "npc_fly_to",
+        "npc_follow",
+        "npc_stop_follow",
+        "npc_kamehameha",
+        "move_object",
+        "duplicate_object",
+        "start_combat",
+        "stop_combat",
+        "npc_stop",
+        "spawn_object"
+      ]
+    },
+    "skills": [
+      {
+        "id": "aw-roblox-genie",
+        "path": "skills/aw-roblox-genie/SKILL.md",
+        "description": "The in-game Genie NPC's own narrow, chat-injection-safe tool surface — what it can and deliberately cannot do, and why."
+      }
+    ],
+    "agents": {
+      "models": [
+        {
+          "slug": "roblox-genie-haiku",
+          "provider": "anthropic",
+          "model_id": "claude-haiku-4-5-20251001",
+          "display_name": "Roblox Genie (Haiku)"
+        }
+      ],
+      "agent_configs": [
+        {
+          "slug": "roblox-genie-config",
+          "name": "Roblox Genie Config",
+          "description": "SECURITY-CRITICAL: mcp_servers below is intentionally empty, not aw-gateway. Before dispatching this agent for real, point it at a named MCP Gateway config scoped to ONLY the aw-roblox-genie upstream (see gateway config.py's named_configs / ConfigGateway) — never the full aw-gateway profile. See this app's README for the exact steps.",
+          "mcp_servers": []
+        }
+      ],
+      "groups": [
+        {
+          "slug": "roblox-genie-group",
+          "name": "Roblox Genie",
+          "description": "The lamp-genie NPC persona for the aw-roblox game."
+        }
+      ],
+      "agents": [
+        {
+          "slug": "roblox-genie",
+          "name": "Roblox Genie",
+          "description": "Chat NPC any aw-roblox player can talk to.",
+          "system_prompt_file": "prompts/roblox-genie-system-prompt.md",
+          "model_slug": "roblox-genie-haiku",
+          "agent_config_slug": "roblox-genie-config",
+          "group_slug": "roblox-genie-group",
+          "skill_slugs": ["aw-roblox-genie"],
+          "icon": "sparkles"
+        }
+      ]
+    }
+  },
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "roblox_pilot_backend_url": {
+        "type": "string",
+        "default": "https://roblox-pilot-backend.app.aw.tekflox.com",
+        "description": "Public subdomain of the roblox-pilot-backend custom app that npc-control tools relay through. Must match the same value configured in aw-app-roblox's own Settings — same live game, two apps."
+      },
+      "roblox_pilot_backend_api_key": {
+        "type": "string",
+        "x-secret": true,
+        "description": "API key the roblox-pilot-backend container issued (its own data/api_keys.json). Same key as aw-app-roblox's roblox_pilot_backend_api_key — each app has its own secret store, so this has to be pasted in both places. Required for every npc-control tool; missing it, each tool call says so by name instead of a bare connection failure."
+      }
+    },
+    "required": []
+  },
+  "config_visible": true,
+  "dependencies": {
+    "apps": [
+      {
+        "id": "mcp-gateway",
+        "version": ">=0.1.0",
+        "required": true,
+        "reason": "This app contributes an mcp.json entry (the 'aw-roblox-genie' server) that MCP Gateway discovers and merges; without the gateway no agent can reach these tools."
+      },
+      {
+        "id": "notion",
+        "version": ">=0.1.0",
+        "required": false,
+        "reason": "create_genie_card/list_genie_cards call aw-app-notion's Kanban REST mirror (/api/apps/notion/kanban/cards) over the loopback workspace API. Not required to install this app, but both tools return a clear \"aw-app-notion not installed\" error without it."
+      }
+    ],
+    "note": "Runtime-enforced app dependency: aw-workspace loads mcp-gateway before this app so the gateway can scan roblox-genie/mcp.json."
+  },
+  "migrations": {}
+}
